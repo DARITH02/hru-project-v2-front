@@ -1,0 +1,7 @@
+{
+  "name": "Obsidian Academic",
+  "description": "A high-fidelity Attendance Management System with a Noir aesthetic, featuring teacher and student portals, dynamic QR check-ins, and real-time tracking.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
