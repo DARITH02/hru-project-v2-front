@@ -13,7 +13,8 @@ import {
   X,
   QrCode,
   Navigation,
-  CalendarCheck
+  CalendarCheck,
+  DollarSign,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -31,6 +32,7 @@ export const Layout = ({ children }) => {
     { id: 'students', path: '/students', label: t('students'), icon: Users },
     { id: 'location', path: '/location', label: t('location'), icon: Navigation },
     { id: 'attendance', path: '/attendance', label: t('myAttendance'), icon: CalendarCheck },
+    { id: 'payments', path: '/payments', label: t('paymentReport'), icon: DollarSign },
   ] : [
     { id: 'portal', path: '/portal', label: t('dashboard'), icon: LayoutDashboard },
     { id: 'checkin', path: '/checkin', label: t('checkIn'), icon: QrCode },

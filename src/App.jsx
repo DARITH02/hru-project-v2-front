@@ -12,6 +12,7 @@ import { TeacherStudents } from './components/TeacherStudents';
 import { TeacherSessions } from './components/TeacherSessions';
 import { TeacherScores } from './components/TeacherScores';
 import { TeacherAttendance } from './components/TeacherAttendance';
+import { TeacherPaymentReport } from './components/TeacherPaymentReport';
 import { AnimatePresence, motion } from 'motion/react';
 import { Loader2 } from 'lucide-react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -115,6 +116,7 @@ function AppContent() {
                 <Route path="/scores/:classId" element={<TeacherScores />} />
                 <Route path="/location" element={<LocationTracker />} />
                 <Route path="/attendance" element={<TeacherAttendance />} />
+                <Route path="/payments" element={<TeacherPaymentReport />} />
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
               </>
             )}
