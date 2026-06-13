@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   Loader2,
   Activity as ActivityIcon,
+  Hash,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
@@ -319,6 +320,10 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
                     : t("unknown"))}
               </h3>
               <div className="flex items-center justify-center gap-3 mt-3">
+                <span className="bg-blue-600/10 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold font-mono flex items-center gap-1.5">
+                  <Hash className="w-3 h-3" />
+                  ID {sessionId}
+                </span>
                 <span className="bg-blue-600/10 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold font-mono">
                   {session.start_time
                     ? new Date(session.start_time).toLocaleTimeString([], {
@@ -436,6 +441,12 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
               {t("liveDiagnostics")}
             </h4>
             <div className="space-y-4">
+              <div className="flex justify-between text-sm py-2 border-b border-black/5 dark:border-white/5">
+                <span className="text-accent-muted">Session ID</span>
+                <span className="font-mono font-bold text-blue-600">
+                  {sessionId}
+                </span>
+              </div>
               <div className="flex justify-between text-sm py-2 border-b border-black/5 dark:border-white/5">
                 <span className="text-accent-muted">{t("status")}</span>
                 <span

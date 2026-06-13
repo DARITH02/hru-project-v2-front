@@ -13,7 +13,8 @@ import {
   Calendar,
   Activity,
   RefreshCcw,
-  Loader2
+  Loader2,
+  Hash
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
@@ -179,6 +180,9 @@ export const TeacherDashboard = ({ onSessionSelect, onViewAllSessions }) => {
                         {typeof session.subject === 'object' ? (session.subject?.name || t('unknown')) : (session.subject || t('unknown'))}
                       </h4>
                       <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs text-blue-600 flex items-center gap-1 font-mono font-bold">
+                          <Hash className="w-3 h-3" /> ID {session.id}
+                        </span>
                         <span className="text-xs text-accent-muted flex items-center gap-1">
                           <Clock className="w-3 h-3" /> {session.start_time || session.time}
                         </span>

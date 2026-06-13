@@ -64,7 +64,6 @@ function AppContent() {
                 <Route path="/checkin/scan" element={<StudentQrScanner />} />
                 <Route path="/checkin/confirm/:sessionId/:token" element={<StudentCheckInConfirm />} />
                 <Route path="/checkin/confirm" element={<StudentCheckInConfirm />} />
-                <Route path="/checkin/manual" element={<StudentManualCheckIn />} />
                 <Route path="/location" element={<LocationTracker />} />
                 <Route path="*" element={<Navigate to="/checkin" replace />} />
               </Routes>
@@ -130,7 +129,6 @@ function AppContent() {
                 <Route path="/checkin/scan" element={<StudentQrScanner />} />
                 <Route path="/checkin/confirm/:sessionId/:token" element={<StudentCheckInConfirm />} />
                 <Route path="/checkin/confirm" element={<StudentCheckInConfirm />} />
-
                 <Route path="/checkin/manual" element={<StudentManualCheckIn />} />
                 <Route path="/location" element={<LocationTracker />} />
                 <Route path="/" element={<Navigate to="/portal" replace />} />

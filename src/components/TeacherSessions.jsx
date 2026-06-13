@@ -13,7 +13,8 @@ import {
   Loader2,
   Plus,
   Play,
-  Check
+  Check,
+  Hash
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -148,6 +149,10 @@ export const TeacherSessions = ({ onSessionSelect }) => {
               </h3>
 
               <div className="space-y-3 mt-6">
+                <div className="flex items-center gap-3 text-sm text-blue-600 bg-blue-600/10 py-2 px-3 rounded-xl w-max">
+                  <Hash className="w-4 h-4" />
+                  <span className="font-mono font-bold">ID {session.id}</span>
+                </div>
                 <div className="flex items-center gap-3 text-sm text-accent-muted bg-black/5 dark:bg-white/5 py-2 px-3 rounded-xl w-max">
                   <Clock className="w-4 h-4" />
                   <span className="font-mono">{new Date(session.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {new Date(session.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>

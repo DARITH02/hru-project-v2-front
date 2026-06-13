@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams, useParams } from 'react-router-dom';
 
 import { useApp } from '../context/AppContext';
 import api from '../lib/api';
@@ -11,6 +11,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import Scanner from 'react-qr-scanner';
 import { buildLocationPayload } from '../lib/location';
+
+const getSessionId = (session) => session?.id || session?.session_id || session?.attendance_session_id;
+
+const isActiveSession = (session) => {
+  const status = String(session?.status || session?.session_status || '').toLowerCase();
+  return Boolean(getSessionId(session)) && status === 'active';
+};
 
 // ─── Step 1: QR Scanner ───────────────────────────────
 export const StudentQrScanner = () => {
@@ -471,7 +478,7 @@ export const StudentCheckInConfirm = () => {
 
 // ─── Default export: Choice screen ───────────────────
 export const StudentCheckIn = ({ onBack }) => {
-  const { t } = useApp();
+  const { t, user } = useApp();
   const navigate = useNavigate();
 
   return (
@@ -502,18 +509,20 @@ export const StudentCheckIn = ({ onBack }) => {
           </div>
         </button>
 
-        <button
-          onClick={() => navigate('/checkin/manual')}
-          className="glass glass-hover p-10 rounded-4xl flex flex-col items-center gap-6 group border border-black/5 dark:border-white/5 hover:border-blue-600/30 transition-all shadow-xl"
-        >
-          <div className="w-20 h-20 rounded-3xl bg-black/5 dark:bg-white/5 text-accent-muted flex items-center justify-center group-hover:scale-110 transition-transform group-hover:bg-blue-600/10 group-hover:text-blue-600">
-            <User className="w-10 h-10" />
-          </div>
-          <div className="text-center">
-            <p className="font-black text-xl font-outfit">{t('manualEntry')}</p>
-            <p className="text-xs text-accent-muted mt-2 font-medium">{t('overrideCredentials')}</p>
-          </div>
-        </button>
+        {user?.role === 'student' && (
+          <button
+            onClick={() => navigate('/checkin/manual')}
+            className="glass glass-hover p-10 rounded-4xl flex flex-col items-center gap-6 group border border-black/5 dark:border-white/5 hover:border-blue-600/30 transition-all shadow-xl"
+          >
+            <div className="w-20 h-20 rounded-3xl bg-black/5 dark:bg-white/5 text-accent-muted flex items-center justify-center group-hover:scale-110 transition-transform group-hover:bg-blue-600/10 group-hover:text-blue-600">
+              <User className="w-10 h-10" />
+            </div>
+            <div className="text-center">
+              <p className="font-black text-xl font-outfit">{t('manualEntry')}</p>
+              <p className="text-xs text-accent-muted mt-2 font-medium">{t('typeStudentCode')}</p>
+            </div>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -522,23 +531,45 @@ export const StudentCheckIn = ({ onBack }) => {
 // ─── Manual entry without QR ─────────────────────────
 export const StudentManualCheckIn = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t, triggerAlert, branding } = useApp();
+  const [activeSession, setActiveSession] = useState(location.state?.activeSession || null);
+  const [loadingSession, setLoadingSession] = useState(!location.state?.activeSession);
   const [studentCode, setStudentCode] = useState('');
-  const [sessionId, setSessionId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [capturingLocation, setCapturingLocation] = useState(false);
   const [result, setResult] = useState(null);
 
-  const [capturingLocation, setCapturingLocation] = useState(false);
+  useEffect(() => {
+    if (location.state?.activeSession) return;
+
+    const fetchActiveSession = async () => {
+      try {
+        const res = await api.get('/student/portal');
+        setActiveSession(res.data?.active_session || null);
+      } catch (err) {
+        console.error('Failed to fetch active student session', err);
+      } finally {
+        setLoadingSession(false);
+      }
+    };
+
+    fetchActiveSession();
+  }, [location.state]);
+
+  const sessionId = getSessionId(activeSession);
+  const canSubmit = isActiveSession(activeSession);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canSubmit || !studentCode.trim()) return;
     setIsSubmitting(true);
 
     const performVerification = async (locationData = {}) => {
       try {
         const res = await api.post('/student/verify', {
           student_code: studentCode.trim(),
-          session_id: parseInt(sessionId),
+          session_id: parseInt(sessionId, 10),
           ...locationData
         });
         setResult({ success: true, message: res.data?.message || t('attendanceMarked') });
@@ -546,7 +577,7 @@ export const StudentManualCheckIn = () => {
       } catch (err) {
         setResult({
           success: false,
-          message: err.response?.data?.message || t('attendanceFailed') || 'Verification failed. Check your code and session ID.'
+          message: err.response?.data?.message || t('attendanceFailed') || 'Verification failed. Check your code and active session.'
         });
         triggerAlert('attendanceFailed');
       } finally {
@@ -589,13 +620,11 @@ export const StudentManualCheckIn = () => {
         },
         { enableHighAccuracy: true, timeout: 8000 }
       );
+    } else if (requireLocation) {
+      setResult({ success: false, message: "Geolocation is not supported." });
+      setIsSubmitting(false);
     } else {
-      if (requireLocation) {
-        setResult({ success: false, message: "Geolocation is not supported." });
-        setIsSubmitting(false);
-      } else {
-        performVerification();
-      }
+      performVerification();
     }
   };
 
@@ -634,8 +663,22 @@ export const StudentManualCheckIn = () => {
     );
   }
 
+  if (loadingSession) {
+    return (
+      <div className="h-[60vh] flex flex-col items-center justify-center gap-4 text-accent-muted">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+        <p className="text-sm font-bold animate-pulse">{t('retrievingSessions')}</p>
+      </div>
+    );
+  }
+
+  const subject = activeSession?.subject?.name
+    || activeSession?.subject_name
+    || (typeof activeSession?.subject === 'string' ? activeSession.subject : null)
+    || t('activeSession');
+
   return (
-    <div className="space-y-8 max-md mx-auto text-left">
+    <div className="space-y-8 max-w-md mx-auto text-left">
       <div className="flex items-center gap-4">
         <button onClick={() => navigate('/checkin')} className="text-accent-muted hover:text-blue-600 transition-colors p-2 glass rounded-xl">
           <ArrowLeft className="w-5 h-5" />
@@ -645,6 +688,38 @@ export const StudentManualCheckIn = () => {
           <p className="text-accent-muted font-medium">{t('enterCredentials')}</p>
         </div>
       </div>
+
+      {!canSubmit && (
+        <div className="glass p-6 rounded-3xl border border-yellow-500/20 bg-yellow-500/5">
+          <div className="flex items-center gap-3 text-yellow-500 font-black text-sm uppercase tracking-widest">
+            <Clock className="w-5 h-5" />
+            {t('waitingForTeacher') || 'Waiting for Teacher'}
+          </div>
+          <p className="text-sm text-accent-muted mt-3">
+            {t('manualActiveSessionOnly') || 'Manual attendance opens automatically when your teacher starts the class session.'}
+          </p>
+        </div>
+      )}
+
+      {canSubmit && (
+        <div className="glass p-6 rounded-3xl border border-blue-600/10 bg-blue-600/5 space-y-3">
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-green-500">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            {t('liveNow')}
+          </div>
+          <h3 className="text-xl font-black font-outfit">{subject}</h3>
+          <div className="flex items-center gap-3 text-sm font-medium text-accent">
+            <BookOpen className="w-4 h-4 text-accent-muted" />
+            <span>ID: <span className="font-mono text-blue-600">{sessionId}</span></span>
+          </div>
+          {activeSession?.room && (
+            <div className="flex items-center gap-3 text-sm font-medium text-accent">
+              <MapPin className="w-4 h-4 text-accent-muted" />
+              <span>{activeSession.room}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="glass p-8 rounded-4xl space-y-6 border border-black/5 dark:border-white/10 shadow-2xl">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -657,22 +732,11 @@ export const StudentManualCheckIn = () => {
               onChange={(e) => setStudentCode(e.target.value.toUpperCase())}
               className="w-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl py-4 px-5 text-lg focus:outline-none focus:border-blue-600 font-mono transition-all font-bold"
               placeholder={t('studentIdPlaceholder')}
+              disabled={!canSubmit || isSubmitting}
             />
-          </div>
-          <div className="space-y-2">
-            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-accent-muted mb-2 ml-1">
-              {t('sessionId')}
-            </label>
-            <input
-              type="number" required value={sessionId}
-              onChange={(e) => setSessionId(e.target.value)}
-              className="w-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl py-4 px-5 text-lg focus:outline-none focus:border-blue-600 font-mono transition-all font-bold"
-              placeholder={t('egSessionId')}
-            />
-            <p className="text-[10px] text-accent-muted mt-2 font-medium italic opacity-60">* {t('sessionIdSub')}</p>
           </div>
           <button
-            type="submit" disabled={isSubmitting}
+            type="submit" disabled={!canSubmit || isSubmitting || !studentCode.trim()}
             className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl hover:bg-blue-700 transition-all disabled:opacity-40 flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20 mt-4"
           >
             {isSubmitting

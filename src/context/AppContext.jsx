@@ -272,6 +272,8 @@ export const AppProvider = ({ children }) => {
       studentIdSub: "Provide your ID to confirm presence",
       studentIdPlaceholder: "Your student ID code",
       sessionIdSub: "Ask your teacher for the session ID",
+      manualActiveSessionOnly:
+        "Manual attendance opens automatically when your teacher starts the class session.",
       activeSession: "Active Session",
       verifying: "Verifying...",
       thankYou: "Thank You",
@@ -542,6 +544,8 @@ export const AppProvider = ({ children }) => {
       studentIdSub: "ផ្តល់លេខសម្គាល់របស់អ្នកដើម្បីបញ្ជាក់វត្តមាន",
       studentIdPlaceholder: "លេខសម្គាល់និស្សិតរបស់អ្នក",
       sessionIdSub: "សួរគ្រូរបស់អ្នកសម្រាប់លេខសម្គាល់សម័យសិក្សា",
+      manualActiveSessionOnly:
+        "ការចុះវត្តមានដោយដៃនឹងបើកដោយស្វ័យប្រវត្តិ នៅពេលគ្រូចាប់ផ្តើមវគ្គសិក្សា។",
       activeSession: "វគ្គសិក្សាសកម្ម",
       verifying: "កំពុងផ្ទៀងផ្ទាត់...",
       thankYou: "សូមអរគុណ!",

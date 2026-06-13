@@ -62,7 +62,7 @@ export const StudentPortal = () => {
       </header>
 
       {/* Check-In Actions */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button
           onClick={() => navigate('/checkin/scan')}
           className="glass glass-hover p-6 rounded-3xl flex flex-col items-center gap-3 group border border-black/5 dark:border-white/5 transition-all relative overflow-hidden"
@@ -78,8 +78,14 @@ export const StudentPortal = () => {
         </button>
 
         <button
-          onClick={() => navigate('/checkin/manual')}
-          className="glass glass-hover p-6 rounded-3xl flex flex-col items-center gap-3 group border border-black/5 dark:border-white/5 transition-all relative overflow-hidden"
+          onClick={() => navigate('/checkin/manual', { state: { activeSession } })}
+          disabled={activeSession?.status !== 'active'}
+          className={cn(
+            "glass p-6 rounded-3xl flex flex-col items-center gap-3 group border border-black/5 dark:border-white/5 transition-all relative overflow-hidden",
+            activeSession?.status === 'active'
+              ? "glass-hover"
+              : "opacity-50 cursor-not-allowed"
+          )}
         >
           <div className="absolute top-0 right-0 w-20 h-20 bg-blue-600/5 blur-3xl rounded-full -mr-10 -mt-10 group-hover:bg-blue-600/10 transition-colors" />
           <div className="w-14 h-14 rounded-2xl bg-black/5 dark:bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform group-hover:bg-blue-600/10">
@@ -87,7 +93,9 @@ export const StudentPortal = () => {
           </div>
           <div className="text-center relative z-10">
             <p className="font-black text-sm uppercase tracking-tight">{t('manualEntry')}</p>
-            <p className="text-[9px] font-bold text-accent-muted mt-0.5 uppercase tracking-widest opacity-60">{t('typeStudentCode')}</p>
+            <p className="text-[9px] font-bold text-accent-muted mt-0.5 uppercase tracking-widest opacity-60">
+              {activeSession?.status === 'active' ? t('typeStudentCode') : (t('waitingForTeacher') || 'Waiting for Teacher')}
+            </p>
           </div>
         </button>
       </div>
