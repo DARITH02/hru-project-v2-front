@@ -203,11 +203,29 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
     alert("This feature requires bulk API implementation on the backend.");
   };
 
-  const handleDownloadReport = () => {
-    window.open(
-      `${api.defaults.baseURL}/teacher/session/${sessionId}/export`,
-      "_blank",
-    );
+  const handleDownloadReport = async () => {
+    if (!sessionId) return;
+
+    try {
+      const response = await api.get(`/teacher/session/${sessionId}/export`, {
+        responseType: "blob",
+      });
+      const disposition = response.headers["content-disposition"] || "";
+      const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+      const filename = filenameMatch?.[1] || `attendance_${sessionId}.xlsx`;
+      const url = URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to download attendance report", err);
+      alert(err.response?.data?.message || "Failed to download report");
+    }
   };
 
   const filteredAttendance = (attendance || []).filter(

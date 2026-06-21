@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { ChatLauncher } from './ChatModal';
 
 export const Layout = ({ children }) => {
   const { t, lang, toggleLang, theme, toggleTheme, user, setUser, branding, triggerAlert } = useApp();
@@ -156,6 +157,7 @@ export const Layout = ({ children }) => {
           {children}
         </div>
       </main>
+      <ChatLauncher />
     </div>
   );
 };
