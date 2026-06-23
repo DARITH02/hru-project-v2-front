@@ -15,6 +15,7 @@ import {
   Navigation,
   CalendarCheck,
   DollarSign,
+  FileUp,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -34,9 +35,11 @@ export const Layout = ({ children }) => {
     { id: 'location', path: '/location', label: t('location'), icon: Navigation },
     { id: 'attendance', path: '/attendance', label: t('myAttendance'), icon: CalendarCheck },
     { id: 'payments', path: '/payments', label: t('paymentReport'), icon: DollarSign },
+    { id: 'documents', path: '/documents', label: t('documents'), icon: FileUp },
   ] : [
     { id: 'portal', path: '/portal', label: t('dashboard'), icon: LayoutDashboard },
     { id: 'checkin', path: '/checkin', label: t('checkIn'), icon: QrCode },
+    { id: 'documents', path: '/documents', label: t('documents'), icon: FileUp },
     { id: 'history', path: '/history', label: t('history'), icon: History },
     { id: 'location', path: '/location', label: t('location'), icon: Navigation },
   ];

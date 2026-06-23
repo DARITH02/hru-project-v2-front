@@ -6,6 +6,7 @@ import { TeacherDashboard } from './components/TeacherDashboard';
 import { LiveSessionMonitor } from './components/LiveSessionMonitor';
 import { StudentPortal } from './components/StudentPortal';
 import { StudentHistory } from './components/StudentHistory';
+import { StudentDocuments } from './components/StudentDocuments';
 import { StudentCheckIn, StudentQrScanner, StudentCheckInConfirm, StudentManualCheckIn } from './components/StudentCheckIn';
 import { LocationTracker } from './components/LocationTracker';
 import { TeacherStudents } from './components/TeacherStudents';
@@ -13,6 +14,7 @@ import { TeacherSessions } from './components/TeacherSessions';
 import { TeacherScores } from './components/TeacherScores';
 import { TeacherAttendance } from './components/TeacherAttendance';
 import { TeacherPaymentReport } from './components/TeacherPaymentReport';
+import { TeacherDocumentUpload } from './components/TeacherDocumentUpload';
 import { AnimatePresence, motion } from 'motion/react';
 import { Loader2 } from 'lucide-react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -116,6 +118,7 @@ function AppContent() {
                 <Route path="/location" element={<LocationTracker />} />
                 <Route path="/attendance" element={<TeacherAttendance />} />
                 <Route path="/payments" element={<TeacherPaymentReport />} />
+                <Route path="/documents" element={<TeacherDocumentUpload />} />
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
               </>
             )}
@@ -125,6 +128,7 @@ function AppContent() {
               <>
                 <Route path="/portal" element={<StudentPortal />} />
                 <Route path="/history" element={<StudentHistory />} />
+                <Route path="/documents" element={<StudentDocuments />} />
                 <Route path="/checkin" element={<StudentCheckIn onBack={() => navigate('/portal')} />} />
                 <Route path="/checkin/scan" element={<StudentQrScanner />} />
                 <Route path="/checkin/confirm/:sessionId/:token" element={<StudentCheckInConfirm />} />
