@@ -14,7 +14,8 @@ import {
   Download,
   CheckCircle,
   Trash2,
-  Edit2,
+  FileText,
+  Send,
   X,
   ArrowLeft,
   Loader2,
@@ -24,6 +25,11 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
 import { buildLocationPayload } from "../lib/location";
+
+const frontendUrl = (import.meta.env.VITE_FRONTEND_URL || window.location.origin).replace(/\/$/, "");
+const buildStudentCheckInUrl = (sessionId, token) => (
+  `${frontendUrl}/checkin/confirm/${sessionId}/${encodeURIComponent(token)}`
+);
 
 export const LiveSessionMonitor = ({ session, onBack }) => {
   const { t, branding } = useApp();
@@ -38,8 +44,17 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [qrError, setQrError] = useState(null);
   const [isFullScreenQr, setIsFullScreenQr] = useState(false);
+  const [permissionTarget, setPermissionTarget] = useState(null);
+  const [permissionSubmitting, setPermissionSubmitting] = useState(false);
+  const [permissionForm, setPermissionForm] = useState({
+    type: "sick",
+    reason: "",
+  });
 
   const sessionId = session?.id;
+  const sessionDate = session?.start_time
+    ? new Date(session.start_time).toISOString().slice(0, 10)
+    : new Date().toISOString().slice(0, 10);
 
   const fetchMonitorData = async () => {
     if (!sessionId) return;
@@ -199,6 +214,39 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
     }
   };
 
+  const openPermissionRequest = (record) => {
+    setPermissionTarget(record);
+    setPermissionForm({
+      type: record.permission_type || "sick",
+      reason: record.permission_reason || "",
+    });
+  };
+
+  const handlePermissionSubmit = async (event) => {
+    event.preventDefault();
+    if (!permissionTarget || !permissionForm.reason.trim()) return;
+
+    setPermissionSubmitting(true);
+    try {
+      await api.post("/teacher/student-permissions", {
+        student_id: permissionTarget.id,
+        attendance_session_id: sessionId,
+        start_date: sessionDate,
+        end_date: sessionDate,
+        type: permissionForm.type,
+        reason: permissionForm.reason.trim(),
+      });
+      setPermissionTarget(null);
+      setPermissionForm({ type: "sick", reason: "" });
+      fetchMonitorData();
+    } catch (err) {
+      console.error("Failed to submit permission request", err);
+      alert(err.response?.data?.message || "Failed to submit permission request");
+    } finally {
+      setPermissionSubmitting(false);
+    }
+  };
+
   const handleMarkAllPresent = async () => {
     alert("This feature requires bulk API implementation on the backend.");
   };
@@ -275,11 +323,7 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
               onClick={(e) => e.stopPropagation()}
             >
               <QRCodeSVG
-                value={(() => {
-                  // Dynamic full URL for native camera support
-                  const base = window.location.origin;
-                  return `${base}/checkin/confirm/${sessionId}/${qrData.qr_token}`;
-                })()}
+                value={buildStudentCheckInUrl(sessionId, qrData.qr_token)}
                 size={Math.min(
                   window.innerWidth * 0.8,
                   window.innerHeight * 0.6,
@@ -316,10 +360,10 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
         {t("backToDashboard")}
       </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
+      <div className="grid grid-cols-1 xl:grid-cols-[340px_minmax(0,1fr)] gap-6 text-left">
         {/* QR Engine Section */}
-        <div className="lg:col-span-12 xl:col-span-5 space-y-6">
-          <div className="glass p-8 rounded-[2.5rem] flex flex-col items-center text-center relative overflow-hidden border border-black/5 dark:border-white/10">
+        <div className="space-y-6">
+          <div className="glass p-5 rounded-[1.5rem] flex flex-col items-center text-center relative overflow-hidden border border-black/5 dark:border-white/10">
             <div className="absolute top-0 left-0 w-full h-1 bg-black/5 dark:bg-white/5">
               <motion.div
                 className="h-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.5)]"
@@ -330,14 +374,14 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
               />
             </div>
 
-            <div className="mb-8">
-              <h3 className="text-2xl md:text-3xl font-black tracking-tight font-outfit">
+            <div className="mb-4">
+              <h3 className="text-xl font-black tracking-tight font-outfit">
                 {session.subject?.name ||
                   (typeof session.subject === "string"
                     ? session.subject
                     : t("unknown"))}
               </h3>
-              <div className="flex items-center justify-center gap-3 mt-3">
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
                 <span className="bg-blue-600/10 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold font-mono flex items-center gap-1.5">
                   <Hash className="w-3 h-3" />
                   ID {sessionId}
@@ -358,7 +402,7 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
             </div>
 
             <div
-              className="bg-white p-6 rounded-4xl shadow-2xl transition-all hover:scale-[1.02] active:scale-[0.98] cursor-zoom-in group relative border border-black/5 dark:border-white/10"
+              className="bg-white p-4 rounded-[1.5rem] shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] cursor-zoom-in group relative border border-black/5 dark:border-white/10"
               onClick={() => {
                 if (qrData?.qr_token && session.status === "active")
                   setIsFullScreenQr(true);
@@ -367,7 +411,7 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
               {(() => {
                 if (session.status === "scheduled") {
                   return (
-                    <div className="w-[280px] h-[280px] flex flex-col items-center justify-center text-yellow-500 gap-4 border-2 border-yellow-500/10 rounded-4xl bg-yellow-500/5 p-8 text-center">
+                    <div className="w-[180px] h-[180px] flex flex-col items-center justify-center text-yellow-500 gap-3 border-2 border-yellow-500/10 rounded-[1.25rem] bg-yellow-500/5 p-5 text-center">
                       <Clock className="w-12 h-12 animate-pulse" />
                       <div>
                         <p className="text-sm font-black uppercase tracking-widest">
@@ -382,14 +426,12 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
                   );
                 }
                 if (qrData?.qr_token) {
-                  // Dynamic full URL for native camera support
-                  const base = window.location.origin;
-                  const qrUrl = `${base}/checkin/confirm/${sessionId}/${qrData.qr_token}`;
+                  const qrUrl = buildStudentCheckInUrl(sessionId, qrData.qr_token);
 
                   return (
                     <>
-                      <QRCodeSVG value={qrUrl} size={280} level="H" />
-                      <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover:opacity-100 transition-all rounded-4xl flex items-center justify-center backdrop-blur-[2px]">
+                      <QRCodeSVG value={qrUrl} size={180} level="H" />
+                      <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover:opacity-100 transition-all rounded-[1.5rem] flex items-center justify-center backdrop-blur-[2px]">
                         <div className="bg-blue-600 text-white px-6 py-3 rounded-2xl text-sm font-bold shadow-xl shadow-blue-600/30 flex items-center gap-2">
                           <ActivityIcon className="w-4 h-4 animate-pulse" />
                           {t("viewAll")}
@@ -400,7 +442,7 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
                 }
                 if (qrError === "FORBIDDEN_ACCESS") {
                   return (
-                    <div className="w-[280px] h-[280px] flex flex-col items-center justify-center text-red-500 gap-4 border-2 border-red-500/10 rounded-4xl bg-red-500/5 p-8 text-center">
+                    <div className="w-[180px] h-[180px] flex flex-col items-center justify-center text-red-500 gap-3 border-2 border-red-500/10 rounded-[1.25rem] bg-red-500/5 p-5 text-center">
                       <XCircle className="w-12 h-12" />
                       <p className="text-xs font-bold leading-relaxed">
                         {t("restrictedAccess")}
@@ -409,14 +451,14 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
                   );
                 }
                 return (
-                  <div className="w-[280px] h-[280px] flex items-center justify-center text-blue-600">
+                  <div className="w-[180px] h-[180px] flex items-center justify-center text-blue-600">
                     <RefreshCw className="w-12 h-12 animate-spin" />
                   </div>
                 );
               })()}
             </div>
 
-            <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest mt-8">
+            <div className="flex flex-wrap items-center justify-center gap-3 text-[10px] font-bold uppercase tracking-widest mt-5">
               <div className="flex items-center gap-2 text-accent-muted">
                 <RefreshCw className="w-4 h-4 animate-spin-slow text-blue-600" />
                 <span>
@@ -430,17 +472,17 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
               </div>
             </div>
 
-            <div className="mt-10 w-full grid grid-cols-2 gap-4">
-              <div className="glass bg-black/5 dark:bg-white/5 p-6 rounded-3xl border border-black/5 dark:border-white/5">
-                <p className="text-2xl font-black text-blue-600">
+            <div className="mt-6 w-full grid grid-cols-2 gap-3">
+              <div className="glass bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/5">
+                <p className="text-xl font-black text-blue-600">
                   {stats.present}/{stats.total}
                 </p>
                 <p className="text-[10px] text-accent-muted uppercase tracking-widest font-bold mt-1">
                   {t("present")}
                 </p>
               </div>
-              <div className="glass bg-black/5 dark:bg-white/5 p-6 rounded-3xl border border-black/5 dark:border-white/5">
-                <p className="text-2xl font-black text-green-500">
+              <div className="glass bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/5">
+                <p className="text-xl font-black text-green-500">
                   {stats.total > 0
                     ? Math.round((stats.present / stats.total) * 100)
                     : 0}
@@ -453,19 +495,19 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
             </div>
           </div>
 
-          <div className="glass p-6 rounded-3xl space-y-5 border border-black/5 dark:border-white/10">
+          <div className="glass p-4 rounded-2xl space-y-3 border border-black/5 dark:border-white/10">
             <h4 className="font-bold flex items-center gap-2 text-sm uppercase tracking-widest text-accent-muted">
               <ActivityIcon className="w-4 h-4 text-blue-600" />
               {t("liveDiagnostics")}
             </h4>
-            <div className="space-y-4">
-              <div className="flex justify-between text-sm py-2 border-b border-black/5 dark:border-white/5">
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm py-1.5 border-b border-black/5 dark:border-white/5">
                 <span className="text-accent-muted">Session ID</span>
                 <span className="font-mono font-bold text-blue-600">
                   {sessionId}
                 </span>
               </div>
-              <div className="flex justify-between text-sm py-2 border-b border-black/5 dark:border-white/5">
+              <div className="flex justify-between text-sm py-1.5 border-b border-black/5 dark:border-white/5">
                 <span className="text-accent-muted">{t("status")}</span>
                 <span
                   className={cn(
@@ -490,7 +532,7 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
                   {t(session.status) || session.status}
                 </span>
               </div>
-              <div className="flex justify-between text-sm py-2">
+              <div className="flex justify-between text-sm py-1.5">
                 <span className="text-accent-muted">{t("room")}</span>
                 <span className="font-bold">
                   {session.room || t("unknown")}
@@ -501,7 +543,7 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
         </div>
 
         {/* Attendance Stream Section */}
-        <div className="lg:col-span-12 xl:col-span-7 space-y-6">
+        <div className="space-y-6 min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h3 className="text-xl font-bold flex items-center gap-2 font-outfit">
               <Users className="w-5 h-5 text-blue-600" />
@@ -537,26 +579,159 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
           </div>
 
           <div className="glass rounded-4xl overflow-hidden shadow-2xl border border-black/5 dark:border-white/10">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="hidden lg:grid grid-cols-[minmax(240px,1.6fr)_140px_90px_130px_130px_130px] gap-3 border-b border-black/5 bg-black/[0.03] px-5 py-4 text-[10px] font-black uppercase tracking-widest text-accent-muted dark:border-white/10 dark:bg-white/[0.03]">
+              <span>{t("students")}</span>
+              <span>{t("studentId")}</span>
+              <span>{t("history")}</span>
+              <span>{t("status")}</span>
+              <span>{t("verification") || "Verification"}</span>
+              <span className="text-right">Actions</span>
+            </div>
+
+            <div className="divide-y divide-black/5 dark:divide-white/5">
+              <AnimatePresence mode="popLayout">
+                {filteredAttendance.map((record) => (
+                  <motion.div
+                    key={record.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="group grid grid-cols-1 gap-4 px-5 py-4 transition-all hover:bg-blue-600/5 lg:grid-cols-[minmax(240px,1.6fr)_140px_90px_130px_130px_130px] lg:items-center lg:gap-3"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[11px] font-black shadow-sm"
+                        style={{
+                          backgroundColor: (record.avatar_color || "#2563eb") + "20",
+                          color: record.avatar_color || "#2563eb",
+                        }}
+                      >
+                        {record.initials ||
+                          (record.name || "S")
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block truncate text-sm font-black text-accent transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                          {record.name}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[11px] font-medium text-accent-muted">
+                          {[record.group_name, record.major_name].filter(Boolean).join(" / ") || "Student"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 lg:block">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-accent-muted lg:hidden">
+                        {t("studentId")}
+                      </span>
+                      <span className="font-mono text-sm text-accent-muted">{record.student_code}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 lg:block">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-accent-muted lg:hidden">
+                        {t("history")}
+                      </span>
+                      <span className="font-mono text-sm text-accent-muted">{record.check_in_time || "-"}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 lg:block">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-accent-muted lg:hidden">
+                        {t("status")}
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-tighter shadow-sm",
+                          record.status?.toUpperCase() === "PRESENT"
+                            ? "bg-green-500/10 text-green-500"
+                            : record.status?.toUpperCase() === "LATE"
+                              ? "bg-yellow-500/10 text-yellow-500"
+                              : "bg-red-500/10 text-red-500",
+                        )}
+                      >
+                        {record.status?.toUpperCase() === "PRESENT" ? (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        ) : (
+                          <Clock className="h-3.5 w-3.5" />
+                        )}
+                        {t(record.status?.toLowerCase()) || record.status}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 lg:block">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-accent-muted lg:hidden">
+                        {t("verification") || "Verification"}
+                      </span>
+                      {record.permission_type || record.permission_status || record.permission_reason ? (
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-wider shadow-sm",
+                            record.permission_status === "approved" || record.status === "EXCUSED"
+                              ? "bg-emerald-500/10 text-emerald-500"
+                              : "bg-amber-500/10 text-amber-500",
+                          )}
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          {[record.permission_status, record.permission_type].filter(Boolean).join(" / ") || "Permission"}
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-xl bg-black/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-accent-muted dark:bg-white/5">
+                          No
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2">
+                      {!record.permission_reason && (
+                        <button
+                          type="button"
+                          onClick={() => openPermissionRequest(record)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-blue-500/15 bg-blue-600/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-blue-600 transition-colors hover:bg-blue-600 hover:text-white"
+                          title="Assign permission request"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span>Request</span>
+                        </button>
+                      )}
+                      {record.attendance_id && (
+                        <button
+                          onClick={() => handleDelete(record.attendance_id)}
+                          className="rounded-xl border border-transparent p-2.5 text-red-500 transition-colors hover:border-red-500/20 hover:bg-red-500/10"
+                          title="Remove Record"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+
+            <div className="hidden">
+              <table className="w-full min-w-[900px] text-left border-collapse">
                 <thead>
                   <tr className="border-b border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5">
-                    <th className="px-6 py-5 text-[10px] uppercase tracking-widest text-accent-muted font-black">
+                    <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-accent-muted font-black whitespace-nowrap">
                       {t("students")}
                     </th>
-                    <th className="px-6 py-5 text-[10px] uppercase tracking-widest text-accent-muted font-black">
+                    <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-accent-muted font-black whitespace-nowrap">
                       {t("studentId")}
                     </th>
-                    <th className="px-6 py-5 text-[10px] uppercase tracking-widest text-accent-muted font-black">
+                    <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-accent-muted font-black whitespace-nowrap">
                       {t("history")}
                     </th>
-                    <th className="px-6 py-5 text-[10px] uppercase tracking-widest text-accent-muted font-black">
+                    <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-accent-muted font-black whitespace-nowrap">
                       {t("status")}
                     </th>
-                    <th className="px-6 py-5 text-[10px] uppercase tracking-widest text-accent-muted font-black">
+                    <th className="px-4 py-4 text-[10px] uppercase tracking-widest text-accent-muted font-black whitespace-nowrap">
                       {t("verification") || "Verification"}
                     </th>
-                    <th className="px-6 py-5 text-[10px] uppercase tracking-widest text-accent-muted font-black"></th>
+                    <th className="px-4 py-4 text-right text-[10px] uppercase tracking-widest text-accent-muted font-black whitespace-nowrap">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5 dark:divide-white/5">
@@ -569,7 +744,7 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
                         exit={{ opacity: 0, scale: 0.95 }}
                         className="group hover:bg-blue-600/5 transition-all cursor-default"
                       >
-                        <td className="px-6 py-5 text-left">
+                        <td className="px-4 py-4 text-left">
                           <div className="flex items-center gap-3">
                             <div
                               className="w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-black shadow-sm"
@@ -586,18 +761,25 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
                                   .join("")
                                   .toUpperCase()}
                             </div>
-                            <span className="text-sm font-bold group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                              {record.name}
-                            </span>
+                            <div className="min-w-0">
+                              <span className="block truncate text-sm font-bold group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                {record.name}
+                              </span>
+                              {(record.group_name || record.major_name) && (
+                                <span className="mt-0.5 block truncate text-[11px] font-medium text-accent-muted">
+                                  {[record.group_name, record.major_name].filter(Boolean).join(" / ")}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
-                        <td className="px-6 py-5 text-sm text-accent-muted font-mono">
+                        <td className="px-4 py-4 text-sm text-accent-muted font-mono whitespace-nowrap">
                           {record.student_code}
                         </td>
-                        <td className="px-6 py-5 text-sm text-accent-muted font-mono">
+                        <td className="px-4 py-4 text-sm text-accent-muted font-mono whitespace-nowrap">
                           {record.check_in_time || "—"}
                         </td>
-                        <td className="px-6 py-5 text-left">
+                        <td className="px-4 py-4 text-left">
                           <span
                             className={cn(
                               "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter shadow-sm",
@@ -616,52 +798,38 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
                             {t(record.status?.toLowerCase()) || record.status}
                           </span>
                         </td>
-                        <td className="px-6 py-5 text-left">
-                          {record.permission_reason ? (
-                            <div className="flex flex-col gap-1">
-                              <span
-                                className={cn(
-                                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter shadow-sm w-fit",
-                                  record.status === "EXCUSED"
-                                    ? "bg-emerald-500/10 text-emerald-500"
-                                    : "bg-amber-500/10 text-amber-500",
-                                )}
-                              >
-                                <ShieldCheck className="w-3.5 h-3.5" />
-                                {record.permission_type}
-                              </span>
-
-                              <span className="text-[11px] text-accent-muted font-medium">
-                                {record.permission_reason}
-                              </span>
-                            </div>
-                          ) : record.distance !== undefined ? (
+                        <td className="px-4 py-4 text-left">
+                          {record.permission_type || record.permission_status || record.permission_reason ? (
                             <span
                               className={cn(
-                                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter shadow-sm",
-                                record.distance <= 500
-                                  ? "bg-blue-500/10 text-blue-500"
-                                  : "bg-red-500/10 text-red-500",
+                                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm whitespace-nowrap",
+                                record.permission_status === "approved" || record.status === "EXCUSED"
+                                  ? "bg-emerald-500/10 text-emerald-500"
+                                  : "bg-amber-500/10 text-amber-500",
                               )}
                             >
-                              {record.distance <= 500 ? (
-                                <ShieldCheck className="w-3.5 h-3.5" />
-                              ) : (
-                                <XCircle className="w-3.5 h-3.5" />
-                              )}
-
-                              {record.distance <= 500
-                                ? t("verifiedOnCampus")
-                                : t("outsideCampus")}
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                              {[record.permission_status, record.permission_type].filter(Boolean).join(" / ") || "Permission"}
                             </span>
                           ) : (
-                            <span className="text-[10px] text-accent-muted font-bold uppercase tracking-widest opacity-40 italic">
-                              {t("noData") || "No Data"}
+                            <span className="inline-flex px-3 py-1.5 rounded-xl bg-black/5 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-accent-muted whitespace-nowrap">
+                              No
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-5 text-right">
-                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                        <td className="px-4 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2 transition-all">
+                            {!record.permission_reason && (
+                              <button
+                                type="button"
+                                onClick={() => openPermissionRequest(record)}
+                                className="inline-flex items-center gap-2 rounded-xl border border-blue-500/15 bg-blue-600/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-blue-600 transition-colors hover:bg-blue-600 hover:text-white"
+                                title="Assign permission request"
+                              >
+                                <FileText className="w-4 h-4" />
+                                <span className="hidden xl:inline">Request</span>
+                              </button>
+                            )}
                             {record.attendance_id && (
                               <button
                                 onClick={() =>
@@ -744,6 +912,90 @@ export const LiveSessionMonitor = ({ session, onBack }) => {
                       <>
                         <CheckCircle className="w-6 h-6" />
                         {t("verifyCheckIn")}
+                      </>
+                    )}
+                  </button>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {permissionTarget && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] bg-noir-950/90 backdrop-blur-md flex items-center justify-center p-6"
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className="glass p-8 md:p-10 rounded-[2.5rem] w-full max-w-lg relative border border-black/5 dark:border-white/10 shadow-2xl"
+              >
+                <button
+                  type="button"
+                  onClick={() => setPermissionTarget(null)}
+                  className="absolute top-8 right-8 text-accent-muted hover:text-blue-600 transition-colors p-2"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+
+                <div className="pr-12">
+                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600/10 text-blue-600">
+                    <FileText className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-2xl font-black mb-2 font-outfit">
+                    Assign Permission Request
+                  </h3>
+                  <p className="text-accent-muted text-sm leading-relaxed font-medium">
+                    {permissionTarget.name} / {permissionTarget.student_code} / Session #{sessionId} / {sessionDate}
+                  </p>
+                </div>
+
+                <form onSubmit={handlePermissionSubmit} className="mt-8 space-y-5">
+                  <label className="block text-left space-y-2">
+                    <span className="block text-xs font-black uppercase tracking-[0.2em] text-accent-muted">
+                      Permission Type
+                    </span>
+                    <select
+                      value={permissionForm.type}
+                      onChange={(event) => setPermissionForm((prev) => ({ ...prev, type: event.target.value }))}
+                      className="w-full rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 px-5 py-4 text-sm outline-none focus:border-blue-600 transition-all"
+                    >
+                      <option value="sick">Sick</option>
+                      <option value="event">Event</option>
+                      <option value="personal">Personal</option>
+                      <option value="official">Official</option>
+                    </select>
+                  </label>
+
+                  <label className="block text-left space-y-2">
+                    <span className="block text-xs font-black uppercase tracking-[0.2em] text-accent-muted">
+                      Reason
+                    </span>
+                    <textarea
+                      required
+                      rows={4}
+                      value={permissionForm.reason}
+                      onChange={(event) => setPermissionForm((prev) => ({ ...prev, reason: event.target.value }))}
+                      className="w-full resize-none rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 px-5 py-4 text-sm outline-none focus:border-blue-600 transition-all"
+                      placeholder="Explain why this student should be excused for this session..."
+                    />
+                  </label>
+
+                  <button
+                    type="submit"
+                    disabled={permissionSubmitting || !permissionForm.reason.trim()}
+                    className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl hover:bg-blue-700 transition-all disabled:opacity-50 shadow-xl shadow-blue-600/20 flex items-center justify-center gap-3"
+                  >
+                    {permissionSubmitting ? (
+                      <RefreshCw className="w-6 h-6 animate-spin" />
+                    ) : (
+                      <>
+                        <Send className="w-6 h-6" />
+                        Submit Permission Request
                       </>
                     )}
                   </button>

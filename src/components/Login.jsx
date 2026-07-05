@@ -7,7 +7,7 @@ export const Login = () => {
   const { t, theme, login, triggerAlert, branding } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState(null); // 'teacher' | 'student' | null
+  const [role, setRole] = useState(null); // 'staff' | 'student' | null
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -18,10 +18,10 @@ export const Login = () => {
 
     const loginPayload = {
       email: email.trim(),
-      role,
     };
 
     if (role === 'student') {
+      loginPayload.role = 'student';
       loginPayload.student_code = password.trim();
       loginPayload.password = password.trim();
     } else {
@@ -73,7 +73,7 @@ export const Login = () => {
 
             <div className="space-y-4">
               <button
-                onClick={() => setRole('teacher')}
+                onClick={() => setRole('staff')}
                 className="w-full group glass glass-hover p-6 rounded-2xl flex items-center justify-between transition-all border border-black/5 dark:border-white/5"
               >
                 <div className="flex items-center gap-4">
@@ -127,7 +127,11 @@ export const Login = () => {
 
             <div className="mb-8">
               <h1 className="text-2xl font-bold tracking-tight mb-2">{t('welcomeBack')}</h1>
-              <p className="text-accent-muted italic">{t('loginAs')} <span className="capitalize text-blue-600 font-bold">{role}</span></p>
+              <p className="text-accent-muted italic">
+                {t('loginAs')} <span className="capitalize text-blue-600 font-bold">
+                  {role === 'staff' ? t('loginAsTeacher') : role}
+                </span>
+              </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">

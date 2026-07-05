@@ -16,12 +16,12 @@ import { TeacherAttendance } from './components/TeacherAttendance';
 import { TeacherPaymentReport } from './components/TeacherPaymentReport';
 import { TeacherDocumentUpload } from './components/TeacherDocumentUpload';
 import { AnimatePresence, motion } from 'motion/react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, LogOut, ShieldCheck } from 'lucide-react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { cn } from './lib/utils';
 
 function AppContent() {
-  const { user, loading, theme } = useApp();
+  const { user, loading, logout, branding } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeSession, setActiveSession] = useState(null);
@@ -38,6 +38,8 @@ function AppContent() {
   }
 
   const isPublicRoute = location.pathname.startsWith('/checkin') || location.pathname === '/location';
+  const isTeacher = user?.role === 'teacher';
+  const isStudent = user?.role === 'student';
 
   if (!user && !isPublicRoute) {
     return <Login />;
@@ -76,9 +78,40 @@ function AppContent() {
     );
   }
 
-  // Define valid routes based on role (Authenticated layout flow)
-  const isTeacher = user?.role === 'teacher';
-  const isStudent = user?.role === 'student';
+  if (user && !isTeacher && !isStudent) {
+    const backendUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api').replace(/\/api\/?$/, '');
+
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-noir-950 text-accent relative overflow-hidden">
+        <div className="noise-overlay" />
+        <div className="w-full max-w-md glass p-8 rounded-3xl relative z-10 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-blue-600/10 flex items-center justify-center mx-auto mb-5">
+            <ShieldCheck className="w-8 h-8 text-blue-600" />
+          </div>
+          <h1 className="text-2xl font-bold mb-2">{branding.systemName}</h1>
+          <p className="text-accent-muted text-sm mb-6">
+            This React portal supports teacher and student accounts. Your account is registered as {user.role}.
+          </p>
+          <div className="flex flex-col gap-3">
+            <a
+              href={`${backendUrl}/admin`}
+              className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-colors"
+            >
+              Open Admin Panel
+            </a>
+            <button
+              type="button"
+              onClick={logout}
+              className="w-full border border-black/10 dark:border-white/10 text-accent-muted font-semibold py-3 rounded-xl hover:text-red-500 hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Layout>
